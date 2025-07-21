@@ -1,17 +1,45 @@
 import React, { useState } from 'react';
+import { useEffect } from 'react';
 import { AlertTriangle, Shield, Users, CreditCard, Search, ArrowRight, ExternalLink, CheckCircle } from 'lucide-react';
-import { crimeTypes } from '../data/mockData';
+import { CybercrimeService } from '../lib/database';
+import { Database } from '../types/database';
 import * as LucideIcons from 'lucide-react';
 
+type CybercrimeData = Database['public']['Tables']['cybercrime_data']['Row'];
+
 const CyberCrimes: React.FC = () => {
+  const [crimeTypes, setCrimeTypes] = useState<CybercrimeData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedCrime, setSelectedCrime] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
+  useEffect(() => {
+    loadCrimes();
+  }, []);
+
+  const loadCrimes = async () => {
+    try {
+      setLoading(true);
+      const result = await CybercrimeService.getAll();
+      
+      if (result.error) {
+        setError(result.error);
+      } else {
+        setCrimeTypes(result.data || []);
+      }
+    } catch (error) {
+      setError('Failed to load cyber crime data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const categories = ['All', 'Email Fraud', 'Personal Data', 'Financial Fraud', 'Harassment'];
   
   const filteredCrimes = crimeTypes.filter(crime => {
-    const matchesSearch = crime.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = crime.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          crime.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || crime.category === selectedCategory;
     return matchesSearch && matchesCategory;
@@ -29,8 +57,42 @@ const CyberCrimes: React.FC = () => {
 
   const renderIcon = (iconName: string) => {
     const IconComponent = LucideIcons[iconName as keyof typeof LucideIcons] as React.ComponentType<any>;
-    return IconComponent ? <IconComponent className="h-6 w-6" /> : <AlertTriangle className="h-6 w-6" />;
+    return <AlertTriangle className="h-6 w-6" />;
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <div className="flex items-center space-x-2 text-red-800">
+              <AlertTriangle className="h-5 w-5" />
+              <span className="font-medium">Error Loading Cyber Crimes</span>
+            </div>
+            <p className="text-red-700 mt-2">{error}</p>
+            <button
+              onClick={loadCrimes}
+              className="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (selectedCrime) {
     const crime = crimeTypes.find(c => c.id === selectedCrime);
@@ -53,15 +115,15 @@ const CyberCrimes: React.FC = () => {
             <div className="bg-gradient-to-r from-red-500 to-orange-500 p-8 text-white">
               <div className="flex items-center space-x-4">
                 <div className="bg-white/20 p-3 rounded-lg">
-                  {renderIcon(crime.icon)}
+                  {renderIcon('AlertTriangle')}
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold">{crime.title}</h1>
+                  <h1 className="text-3xl font-bold">{crime.type}</h1>
                   <p className="text-red-100 text-lg">{crime.description}</p>
                   <div className="flex items-center space-x-4 mt-4">
                     <span className="bg-white/20 px-3 py-1 rounded-full text-sm">{crime.category}</span>
                     <span className={`px-3 py-1 rounded-full text-sm font-medium bg-white/20`}>
-                      {crime.severity} Risk
+                      {crime.severity.charAt(0).toUpperCase() + crime.severity.slice(1)} Risk
                     </span>
                   </div>
                 </div>
@@ -77,7 +139,7 @@ const CyberCrimes: React.FC = () => {
                     <span>Prevention Tips</span>
                   </h2>
                   <div className="space-y-3">
-                    {crime.preventionTips.map((tip, index) => (
+                    {crime.prevention_tips.map((tip, index) => (
                       <div key={index} className="flex items-start space-x-3 p-4 bg-green-50 rounded-lg border border-green-200">
                         <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
                         <p className="text-gray-700">{tip}</p>
@@ -93,7 +155,7 @@ const CyberCrimes: React.FC = () => {
                     <span>If You're a Victim</span>
                   </h2>
                   <div className="space-y-3">
-                    {crime.reportingSteps.map((step, index) => (
+                    {crime.reporting_steps.map((step, index) => (
                       <div key={index} className="flex items-start space-x-3 p-4 bg-orange-50 rounded-lg border border-orange-200">
                         <div className="flex items-center justify-center w-6 h-6 bg-orange-600 text-white rounded-full text-sm font-bold flex-shrink-0">
                           {index + 1}
@@ -214,10 +276,10 @@ const CyberCrimes: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center space-x-3">
                     <div className="bg-red-100 p-2 rounded-lg">
-                      {renderIcon(crime.icon)}
+                      {renderIcon('AlertTriangle')}
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-gray-900">{crime.title}</h3>
+                      <h3 className="text-xl font-bold text-gray-900">{crime.type}</h3>
                       <p className="text-sm text-gray-500">{crime.category}</p>
                     </div>
                   </div>
@@ -230,7 +292,7 @@ const CyberCrimes: React.FC = () => {
 
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-gray-500">
-                    {crime.preventionTips.length} prevention tips
+                    {crime.prevention_tips.length} prevention tips
                   </div>
                   <div className="flex items-center space-x-2 text-blue-600 font-medium group">
                     <span>Learn More</span>

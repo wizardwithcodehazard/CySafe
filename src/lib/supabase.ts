@@ -1,58 +1,29 @@
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '../types/database';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://ycqpvsihpuazwbgfrxwq.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InljcXB2c2locHVhendiZ2ZyeHdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMjMwMTYsImV4cCI6MjA2ODY5OTAxNn0.2Sh3BZBIeRn3I5He0s917vjJkFNuzX7YKi-NU1MroTU';
 
 // Check if Supabase is properly configured
 const isSupabaseConfigured = () => {
-  return supabaseUrl && 
-         supabaseAnonKey && 
-         supabaseUrl !== 'https://your-project-id.supabase.co' &&
-         supabaseAnonKey !== 'your_supabase_anon_key_here';
+  return supabaseUrl && supabaseAnonKey && supabaseUrl.includes('supabase.co');
 };
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables');
-}
-
-if (!isSupabaseConfigured()) {
-  console.warn('Supabase is not properly configured. Please update your .env file with actual Supabase credentials.');
-}
-
-// Create a mock client if Supabase is not configured
-const createMockClient = () => ({
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
-    signInWithPassword: () => Promise.reject(new Error('Supabase not configured')),
-    signOut: () => Promise.resolve({ error: null }),
-    getSession: () => Promise.resolve({ data: { session: null }, error: null }),
-    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } })
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
   },
-  from: () => ({
-    select: () => Promise.reject(new Error('Supabase not configured')),
-    insert: () => Promise.reject(new Error('Supabase not configured')),
-    update: () => Promise.reject(new Error('Supabase not configured')),
-    delete: () => Promise.reject(new Error('Supabase not configured'))
-  })
+  db: {
+    schema: 'public'
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'cybersafe-admin-portal'
+    }
+  }
 });
-
-export const supabase = isSupabaseConfigured() 
-  ? createClient<Database>(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true
-      },
-      db: {
-        schema: 'public'
-      },
-      global: {
-        headers: {
-          'X-Client-Info': 'cybersafe-admin-portal'
-        }
-      }
-    })
-  : createMockClient() as any;
 
 // Security configuration
 export const SECURITY_CONFIG = {
